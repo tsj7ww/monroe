@@ -1,2 +1,2 @@
-# monroe
+# Monroe
 Economic Python package
