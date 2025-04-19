@@ -1,10 +1,116 @@
 services:
-  jupyter:
-    build: .
+
+  ray-head:
+    build:
+      context: ./env
+      dockerfile: Dockerfile
+      args:
+        - ENVIRONMENT=${ENVIRONMENT}
+    image: monroe-ray-head
+    container_name: monroe-ray-head
+    env_file:
+      - .env
+    ports:
+      - "${RAY_DASHBOARD_PORT}:${RAY_DASHBOARD_PORT}"
+      - "${RAY_HEAD_PORT}:${RAY_HEAD_PORT}"
+      # - "${RAY_PROMETHEUS_METRICS_PORT}:${RAY_PROMETHEUS_MEsTRICS_PORT}"
     volumes:
       - .:/workspace
-    environment:
-      - PYTHONPATH=/src
+    command: ray-head
+
+  ray-worker:
+    build:
+      context: ./env
+      dockerfile: Dockerfile
+      args:
+        - ENVIRONMENT=${ENVIRONMENT}
+    image: monroe-ray-worker
+    container_name: monroe-ray-worker
+    env_file:
+      - .env
+    depends_on:
+      - ray-head
+    volumes:
+      - .:/workspace
+    command: ray-worker
+
+  dask-scheduler:
+    build:
+      context: ./env
+      dockerfile: Dockerfile
+      args:
+        - ENVIRONMENT=${ENVIRONMENT}
+    image: monroe-dask-scheduler
+    container_name: monroe-dask-scheduler
+    env_file:
+      - .env
     ports:
-      - "8888:8888"
-    command: jupyter lab --ip 0.0.0.0 --port 8888 --allow-root --no-browser --NotebookApp.token='lossaversion'
+      - "${DASK_DASHBOARD_PORT}:${DASK_DASHBOARD_PORT}"
+      - "${DASK_SCHEDULER_PORT}:${DASK_SCHEDULER_PORT}"
+    volumes:
+      - .:/workspace
+    command: dask-scheduler
+
+  dask-worker:
+    build:
+      context: ./env
+      dockerfile: Dockerfile
+      args:
+        - ENVIRONMENT=${ENVIRONMENT}
+    image: monroe-dask-worker
+    container_name: monroe-dask-worker
+    depends_on:
+      - dask-scheduler
+    volumes:
+      - .:/workspace
+    env_file:
+      - .env
+    command: dask-worker
+
+  jupyter:
+    build:
+      context: ./env
+      dockerfile: Dockerfile
+      args:
+        - ENVIRONMENT=${ENVIRONMENT}
+    image: monroe-jupyter
+    container_name: monroe-jupyter
+    depends_on:
+      - ray-head
+      - dask-scheduler
+    volumes:
+      - .:/workspace
+    env_file:
+      - .env
+    ports:
+      - "${JUPYTER_PORT}:${JUPYTER_PORT}"
+    command: jupyter
+
+#   prometheus:
+#     image: prom/prometheus:latest
+#     container_name: monroe-prometheus
+#     ports:
+#       - "${RAY_PROMETHEUS_PORT}:${RAY_PROMETHEUS_PORT}"
+#     volumes:
+#       - ./monitoring/prometheus:/etc/prometheus
+#       - prometheus_data:/prometheus
+#     command:
+#       - '--config.file=/etc/prometheus/prometheus.yml'
+#       - '--storage.tsdb.path=/prometheus'
+#       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+#       - '--web.console.templates=/usr/share/prometheus/consoles'
+#     restart: unless-stopped
+
+#   grafana:
+#     image: grafana/grafana:latest
+#     container_name: monroe-grafana
+#     ports:
+#       - "${RAY_GRAFANA_PORT}:${RAY_GRAFANA_PORT}"
+#     volumes:
+#       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+#       - grafana_data:/var/lib/grafana
+#     restart: unless-stopped
+
+# volumes:
+#   prometheus_data:
+#   grafana_data:
