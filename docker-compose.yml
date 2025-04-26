@@ -16,6 +16,7 @@ services:
       # - "${RAY_PROMETHEUS_METRICS_PORT}:${RAY_PROMETHEUS_MEsTRICS_PORT}"
     volumes:
       - .:/workspace
+    shm_size: 2.27gb
     command: ray-head
 
   ray-worker:
@@ -32,6 +33,7 @@ services:
       - ray-head
     volumes:
       - .:/workspace
+    shm_size: 2.5gb
     command: ray-worker
 
   dask-scheduler:
