@@ -1,4 +1,6 @@
-# config.py
+"""
+Central AutoML configuration
+"""
 
 import os
 import yaml
@@ -36,8 +38,7 @@ class Config:
         
         # Model training
         "models": {
-            "train_test_split": 0.8,
-            "validation_size": 0.2,
+            "test_size": 0.2,
             "cv_folds": 5,
             "stratify": True,
             "random_state": 42,
