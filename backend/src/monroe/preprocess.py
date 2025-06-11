@@ -13,8 +13,8 @@ from .data import Data
 
 class Preprocess:
     def __init__(self,
-                 config: Config,
-                 data: Data):
+                 data: Data,
+                 config: Config):
         self.config = config
         self.data = data
 

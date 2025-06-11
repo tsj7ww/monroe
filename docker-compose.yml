@@ -1,92 +1,96 @@
 services:
 
-  ray-head:
-    build:
-      context: ./env
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=${ENVIRONMENT}
-    image: monroe-ray-head
-    container_name: monroe-ray-head
-    env_file:
-      - .env
-    ports:
-      - "${RAY_DASHBOARD_PORT}:${RAY_DASHBOARD_PORT}"
-      - "${RAY_HEAD_PORT}:${RAY_HEAD_PORT}"
-      # - "${RAY_PROMETHEUS_METRICS_PORT}:${RAY_PROMETHEUS_MEsTRICS_PORT}"
-    volumes:
-      - .:/workspace
-    shm_size: 2.27gb
-    command: ray-head
+########################
+### Backend Services ###
+########################
 
-  ray-worker:
-    build:
-      context: ./env
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=${ENVIRONMENT}
-    image: monroe-ray-worker
-    container_name: monroe-ray-worker
-    env_file:
-      - .env
-    depends_on:
-      - ray-head
-    volumes:
-      - .:/workspace
-    shm_size: 2.5gb
-    command: ray-worker
+  # jupyter:
+  #   build:
+  #     context: ./backend/env
+  #     dockerfile: Dockerfile
+  #     args:
+  #       - ENVIRONMENT=${ENVIRONMENT}
+  #   image: monroe-jupyter
+  #   container_name: monroe-jupyter
+  #   # depends_on:
+  #     # - ray-head
+  #     # - dask-scheduler
+  #   volumes:
+  #     - ./backend:/workspace
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "${JUPYTER_PORT}:${JUPYTER_PORT}"
+  #   command: jupyter
 
-  dask-scheduler:
-    build:
-      context: ./env
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=${ENVIRONMENT}
-    image: monroe-dask-scheduler
-    container_name: monroe-dask-scheduler
-    env_file:
-      - .env
-    ports:
-      - "${DASK_DASHBOARD_PORT}:${DASK_DASHBOARD_PORT}"
-      - "${DASK_SCHEDULER_PORT}:${DASK_SCHEDULER_PORT}"
-    volumes:
-      - .:/workspace
-    command: dask-scheduler
+  # dask-scheduler:
+  #   build:
+  #     context: ./backend/env
+  #     dockerfile: Dockerfile
+  #     args:
+  #       - ENVIRONMENT=${ENVIRONMENT}
+  #   image: monroe-dask-scheduler
+  #   container_name: monroe-dask-scheduler
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "${DASK_DASHBOARD_PORT}:${DASK_DASHBOARD_PORT}"
+  #     - "${DASK_SCHEDULER_PORT}:${DASK_SCHEDULER_PORT}"
+  #   volumes:
+  #     - ./backend:/workspace
+  #   command: dask-scheduler
 
-  dask-worker:
-    build:
-      context: ./env
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=${ENVIRONMENT}
-    image: monroe-dask-worker
-    container_name: monroe-dask-worker
-    depends_on:
-      - dask-scheduler
-    volumes:
-      - .:/workspace
-    env_file:
-      - .env
-    command: dask-worker
+  # dask-worker:
+  #   build:
+  #     context: ./backend/env
+  #     dockerfile: Dockerfile
+  #     args:
+  #       - ENVIRONMENT=${ENVIRONMENT}
+  #   image: monroe-dask-worker
+  #   container_name: monroe-dask-worker
+  #   depends_on:
+  #     - dask-scheduler
+  #   volumes:
+  #     - ./backend:/workspace
+  #   env_file:
+  #     - .env
+  #   command: dask-worker
 
-  jupyter:
-    build:
-      context: ./env
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=${ENVIRONMENT}
-    image: monroe-jupyter
-    container_name: monroe-jupyter
-    depends_on:
-      - ray-head
-      - dask-scheduler
-    volumes:
-      - .:/workspace
-    env_file:
-      - .env
-    ports:
-      - "${JUPYTER_PORT}:${JUPYTER_PORT}"
-    command: jupyter
+  # ray-head:
+  #   build:
+  #     context: ./backend/env
+  #     dockerfile: Dockerfile
+  #     args:
+  #       - ENVIRONMENT=${ENVIRONMENT}
+  #   image: monroe-ray-head
+  #   container_name: monroe-ray-head
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "${RAY_DASHBOARD_PORT}:${RAY_DASHBOARD_PORT}"
+  #     - "${RAY_HEAD_PORT}:${RAY_HEAD_PORT}"
+  #     # - "${RAY_PROMETHEUS_METRICS_PORT}:${RAY_PROMETHEUS_MEsTRICS_PORT}"
+  #   volumes:
+  #     - ./backend:/workspace
+  #   shm_size: 2.27gb
+  #   command: ray-head
+
+  # ray-worker:
+  #   build:
+  #     context: ./backend/env
+  #     dockerfile: Dockerfile
+  #     args:
+  #       - ENVIRONMENT=${ENVIRONMENT}
+  #   image: monroe-ray-worker
+  #   container_name: monroe-ray-worker
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - ray-head
+  #   volumes:
+  #     - ./backend:/workspace
+  #   shm_size: 2.5gb
+  #   command: ray-worker
 
 #   prometheus:
 #     image: prom/prometheus:latest
@@ -116,3 +120,21 @@ services:
 # volumes:
 #   prometheus_data:
 #   grafana_data:
+
+#########################
+### Frontend Services ###
+#########################
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: env/Dockerfile
+      # args:
+      #   - ENVIRONMENT=${ENVIRONMENT}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true

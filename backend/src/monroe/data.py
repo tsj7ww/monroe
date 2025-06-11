@@ -4,7 +4,8 @@ Data API and metadata
 
 import os
 import dask.dataframe as dd
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
+from dask_ml.model_selection import train_test_split
 from .config import Config
 
 class Data:
@@ -17,12 +18,13 @@ class Data:
         self.config = config
 
     def load_data(self):
-        self.data = dd.read_csv(self.data_fpath)
+        # TODO: find better solution to dtype specification than assume_missing=True
+        self.data = dd.read_csv(self.data_fpath, assume_missing=True)
 
     def parse_data(self):
-        self.x = self.data.drop([target_column], axis=1)
+        self.x = self.data.drop(self.target_column, axis=1)
         self.x_original = self.x
-        self.y = self.data[target_column]
+        self.y = self.data[self.target_column]
         self.y_original = self.y
         self.x_info = {
             i: {'dtype': str(j)}
@@ -31,7 +33,7 @@ class Data:
         self.y_info = {'dtype': str(self.y.dtypes)}
 
     def get_column_info(
-        self, max_values_as_discrete: int
+        self, max_values_as_discrete: int = 10,
     ):
         for col, info in self.x_info.items():
             if info['dtype'] == 'object':
@@ -46,9 +48,11 @@ class Data:
                     info['category'] = 'continuous'
         if self.y_info['dtype'] == 'object':
             self.y_info['needs_numification'] = True
+        else:
+            self.y_info['needs_numification'] = False
 
     def regression_or_classification(
-        self, max_values_as_classification: int
+        self, max_values_as_classification: int = 10,
     ):
         unique_values = len(self.y.unique())
         if unique_values <= max_values_as_classification:
