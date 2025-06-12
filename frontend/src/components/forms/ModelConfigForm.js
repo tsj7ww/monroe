@@ -1,53 +1,211 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { Download, RotateCcw, Settings, Database, Brain, Sliders, CheckCircle, AlertCircle } from 'lucide-react';
+
+const InputField = React.memo(({ 
+  label, 
+  name, 
+  type = 'text', 
+  min, 
+  max, 
+  step, 
+  options, 
+  placeholder, 
+  required = false, 
+  icon: Icon, 
+  value, 
+  onChange, 
+  error 
+}) => (
+  <div className="space-y-2">
+    <label className="flex items-center text-sm font-medium text-gray-700">
+      {Icon && <Icon className="w-4 h-4 mr-2 text-gray-500" />}
+      {label}
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
+    
+    {type === 'select' ? (
+      <select
+        name={name}
+        value={value}
+        onChange={onChange}
+        className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+          error ? 'border-red-500' : 'border-gray-300'
+        }`}
+      >
+        {options.map(option => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    ) : type === 'checkbox' ? (
+      <label className="flex items-center space-x-3 cursor-pointer">
+        <input
+          type="checkbox"
+          name={name}
+          checked={value}
+          onChange={onChange}
+          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+        />
+        <span className="text-sm text-gray-700">{label}</span>
+      </label>
+    ) : (
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        min={min}
+        max={max}
+        step={step}
+        placeholder={placeholder}
+        className={`w-full px-3 py-2 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+          error ? 'border-red-500' : 'border-gray-300'
+        }`}
+      />
+    )}
+    
+    {error && (
+      <p className="flex items-center text-sm text-red-600">
+        <AlertCircle className="w-4 h-4 mr-1" />
+        {error}
+      </p>
+    )}
+  </div>
+));
+
+const Section = React.memo(({ title, icon: Icon, children }) => (
+  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="flex items-center mb-4">
+      <Icon className="w-5 h-5 text-blue-600 mr-2" />
+      <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {children}
+    </div>
+  </div>
+));
+
+const initialConfig = {
+  modelName: '',
+  modelType: 'random_forest',
+  taskType: 'classification',
+  targetColumn: '',
+  testSize: 0.2,
+  randomState: 42,
+  maxDepth: 10,
+  nEstimators: 100,
+  learningRate: 0.1,
+  regularization: 0.01,
+  crossValidation: 5,
+  scoringMetric: 'accuracy',
+  earlyStoppingRounds: 10,
+  featureSelection: false,
+  hyperparameterTuning: false,
+  classWeight: 'balanced'
+};
+
+const modelTypeOptions = [
+  { value: 'random_forest', label: 'Random Forest' },
+  { value: 'xgboost', label: 'XGBoost' },
+  { value: 'neural_network', label: 'Neural Network' },
+  { value: 'logistic_regression', label: 'Logistic Regression' },
+  { value: 'svm', label: 'Support Vector Machine' }
+];
+
+const taskTypeOptions = [
+  { value: 'classification', label: 'Classification' },
+  { value: 'regression', label: 'Regression' }
+];
+
+const classWeightOptions = [
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'none', label: 'None' }
+];
+
+const scoringMetricOptions = [
+  { value: 'accuracy', label: 'Accuracy' },
+  { value: 'precision', label: 'Precision' },
+  { value: 'recall', label: 'Recall' },
+  { value: 'f1', label: 'F1 Score' },
+  { value: 'roc_auc', label: 'ROC AUC' }
+];
 
 const ModelConfigForm = () => {
-  const [config, setConfig] = useState({
-    // Basic Settings
-    modelName: '',
-    modelType: 'random_forest',
-    taskType: 'classification',
-    
-    // Data Settings
-    targetColumn: '',
-    testSize: 0.2,
-    randomState: 42,
-    
-    // Model Parameters
-    maxDepth: 10,
-    nEstimators: 100,
-    learningRate: 0.1,
-    regularization: 0.01,
-    
-    // Training Settings
-    crossValidation: 5,
-    scoringMetric: 'accuracy',
-    earlyStoppingRounds: 10,
-    
-    // Advanced Options
-    featureSelection: false,
-    hyperparameterTuning: false,
-    classWeight: 'balanced'
-  });
-
+  const [config, setConfig] = useState(initialConfig);
   const [jsonOutput, setJsonOutput] = useState('');
   const [showJson, setShowJson] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInputChange = (e) => {
+  const validateForm = useCallback(() => {
+    const newErrors = {};
+    
+    if (!config.modelName.trim()) {
+      newErrors.modelName = 'Model name is required';
+    }
+    
+    if (!config.targetColumn.trim()) {
+      newErrors.targetColumn = 'Target column is required';
+    }
+    
+    if (config.testSize < 0.1 || config.testSize > 0.5) {
+      newErrors.testSize = 'Test size must be between 0.1 and 0.5';
+    }
+    
+    if (config.maxDepth < 1 || config.maxDepth > 50) {
+      newErrors.maxDepth = 'Max depth must be between 1 and 50';
+    }
+    
+    if (config.nEstimators < 10 || config.nEstimators > 1000) {
+      newErrors.nEstimators = 'N estimators must be between 10 and 1000';
+    }
+    
+    if (config.learningRate < 0.001 || config.learningRate > 1) {
+      newErrors.learningRate = 'Learning rate must be between 0.001 and 1';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [config]);
+
+  const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
+    
     setConfig(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : 
-               type === 'number' ? parseFloat(value) : value
+               type === 'number' ? (value === '' ? '' : parseFloat(value)) : value
     }));
-  };
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  }, [errors]);
 
-  const generateJson = () => {
+  const generateJson = useCallback(() => {
     const jsonString = JSON.stringify(config, null, 2);
     setJsonOutput(jsonString);
     setShowJson(true);
-  };
+  }, [config]);
 
-  const downloadJson = () => {
+  const handleSubmit = useCallback(async () => {
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      console.log('Configuration generated:', config);
+      setIsSubmitting(false);
+      generateJson();
+    }, 1000);
+  }, [validateForm, config, generateJson]);
+
+  const downloadJson = useCallback(() => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonOutput);
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
@@ -55,408 +213,268 @@ const ModelConfigForm = () => {
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
-  };
+  }, [jsonOutput, config.modelName]);
 
-  const resetForm = () => {
-    setConfig({
-      modelName: '',
-      modelType: 'random_forest',
-      taskType: 'classification',
-      targetColumn: '',
-      testSize: 0.2,
-      randomState: 42,
-      maxDepth: 10,
-      nEstimators: 100,
-      learningRate: 0.1,
-      regularization: 0.01,
-      crossValidation: 5,
-      scoringMetric: 'accuracy',
-      earlyStoppingRounds: 10,
-      featureSelection: false,
-      hyperparameterTuning: false,
-      classWeight: 'balanced'
-    });
+  const resetForm = useCallback(() => {
+    setConfig(initialConfig);
     setShowJson(false);
     setJsonOutput('');
-  };
-
-  const containerStyle = {
-    padding: '20px',
-    backgroundColor: '#f5f5f5',
-    minHeight: '100vh',
-    fontFamily: 'Arial, sans-serif'
-  };
-
-  const formStyle = {
-    backgroundColor: 'white',
-    padding: '30px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    maxWidth: '800px',
-    margin: '0 auto'
-  };
-
-  const sectionStyle = {
-    marginBottom: '30px',
-    paddingBottom: '20px',
-    borderBottom: '1px solid #eee'
-  };
-
-  const gridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '20px',
-    marginTop: '15px'
-  };
-
-  const inputGroupStyle = {
-    marginBottom: '15px'
-  };
-
-  const labelStyle = {
-    display: 'block',
-    marginBottom: '5px',
-    fontWeight: 'bold',
-    color: '#333'
-  };
-
-  const inputStyle = {
-    width: '100%',
-    padding: '8px 12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px'
-  };
-
-  const selectStyle = {
-    ...inputStyle,
-    backgroundColor: 'white'
-  };
-
-  const buttonStyle = {
-    padding: '10px 20px',
-    margin: '5px',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: 'bold'
-  };
-
-  const primaryButtonStyle = {
-    ...buttonStyle,
-    backgroundColor: '#007bff',
-    color: 'white'
-  };
-
-  const secondaryButtonStyle = {
-    ...buttonStyle,
-    backgroundColor: '#6c757d',
-    color: 'white'
-  };
-
-  const successButtonStyle = {
-    ...buttonStyle,
-    backgroundColor: '#28a745',
-    color: 'white'
-  };
-
-  const jsonStyle = {
-    backgroundColor: '#f8f9fa',
-    border: '1px solid #dee2e6',
-    borderRadius: '4px',
-    padding: '15px',
-    fontFamily: 'monospace',
-    fontSize: '12px',
-    overflow: 'auto',
-    maxHeight: '400px',
-    marginTop: '20px'
-  };
+    setErrors({});
+  }, []);
 
   return (
-    <div style={containerStyle}>
-      <h1 style={{ textAlign: 'center', marginBottom: '30px', color: '#333' }}>
-        Model Configuration Generator
-      </h1>
-      
-      <div style={formStyle}>
-        {/* Basic Settings */}
-        <div style={sectionStyle}>
-          <h3 style={{ color: '#007bff', marginBottom: '15px' }}>Basic Settings</h3>
-          <div style={gridStyle}>
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Model Name</label>
-              <input
-                type="text"
-                name="modelName"
-                value={config.modelName}
-                onChange={handleInputChange}
-                placeholder="e.g., fraud_detection_v1"
-                style={inputStyle}
-              />
-            </div>
-            
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Model Type</label>
-              <select
-                name="modelType"
-                value={config.modelType}
-                onChange={handleInputChange}
-                style={selectStyle}
-              >
-                <option value="random_forest">Random Forest</option>
-                <option value="xgboost">XGBoost</option>
-                <option value="neural_network">Neural Network</option>
-                <option value="logistic_regression">Logistic Regression</option>
-                <option value="svm">Support Vector Machine</option>
-              </select>
-            </div>
-            
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Task Type</label>
-              <select
-                name="taskType"
-                value={config.taskType}
-                onChange={handleInputChange}
-                style={selectStyle}
-              >
-                <option value="classification">Classification</option>
-                <option value="regression">Regression</option>
-              </select>
-            </div>
-            
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Target Column</label>
-              <input
-                type="text"
-                name="targetColumn"
-                value={config.targetColumn}
-                onChange={handleInputChange}
-                placeholder="e.g., is_fraud"
-                style={inputStyle}
-              />
-            </div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Model Configuration Generator
+          </h1>
+          <p className="text-gray-600">
+            Configure your machine learning model parameters with ease
+          </p>
         </div>
+        
+        <div className="space-y-6">
+          {/* Basic Settings */}
+          <Section title="Basic Settings" icon={Settings}>
+            <InputField
+              label="Model Name"
+              name="modelName"
+              placeholder="e.g., fraud_detection_v1"
+              required
+              icon={Brain}
+              value={config.modelName}
+              onChange={handleInputChange}
+              error={errors.modelName}
+            />
+            
+            <InputField
+              label="Model Type"
+              name="modelType"
+              type="select"
+              value={config.modelType}
+              onChange={handleInputChange}
+              error={errors.modelType}
+              options={modelTypeOptions}
+            />
+            
+            <InputField
+              label="Task Type"
+              name="taskType"
+              type="select"
+              value={config.taskType}
+              onChange={handleInputChange}
+              error={errors.taskType}
+              options={taskTypeOptions}
+            />
+            
+            <InputField
+              label="Target Column"
+              name="targetColumn"
+              placeholder="e.g., is_fraud"
+              required
+              icon={Database}
+              value={config.targetColumn}
+              onChange={handleInputChange}
+              error={errors.targetColumn}
+            />
+          </Section>
 
-        {/* Data Settings */}
-        <div style={sectionStyle}>
-          <h3 style={{ color: '#007bff', marginBottom: '15px' }}>Data Settings</h3>
-          <div style={gridStyle}>
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Test Size (0.1 - 0.5)</label>
-              <input
-                type="number"
-                name="testSize"
-                value={config.testSize}
-                onChange={handleInputChange}
-                min="0.1"
-                max="0.5"
-                step="0.05"
-                style={inputStyle}
-              />
-            </div>
+          {/* Data Settings */}
+          <Section title="Data Settings" icon={Database}>
+            <InputField
+              label="Test Size"
+              name="testSize"
+              type="number"
+              min="0.1"
+              max="0.5"
+              step="0.05"
+              value={config.testSize}
+              onChange={handleInputChange}
+              error={errors.testSize}
+            />
             
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Random State</label>
-              <input
-                type="number"
-                name="randomState"
-                value={config.randomState}
-                onChange={handleInputChange}
-                style={inputStyle}
-              />
-            </div>
+            <InputField
+              label="Random State"
+              name="randomState"
+              type="number"
+              value={config.randomState}
+              onChange={handleInputChange}
+              error={errors.randomState}
+            />
             
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Class Weight</label>
-              <select
-                name="classWeight"
-                value={config.classWeight}
-                onChange={handleInputChange}
-                style={selectStyle}
-              >
-                <option value="balanced">Balanced</option>
-                <option value="none">None</option>
-              </select>
-            </div>
-          </div>
-        </div>
+            <InputField
+              label="Class Weight"
+              name="classWeight"
+              type="select"
+              value={config.classWeight}
+              onChange={handleInputChange}
+              error={errors.classWeight}
+              options={classWeightOptions}
+            />
+          </Section>
 
-        {/* Model Parameters */}
-        <div style={sectionStyle}>
-          <h3 style={{ color: '#007bff', marginBottom: '15px' }}>Model Parameters</h3>
-          <div style={gridStyle}>
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Max Depth</label>
-              <input
-                type="number"
-                name="maxDepth"
-                value={config.maxDepth}
-                onChange={handleInputChange}
-                min="1"
-                max="50"
-                style={inputStyle}
-              />
-            </div>
+          {/* Model Parameters */}
+          <Section title="Model Parameters" icon={Sliders}>
+            <InputField
+              label="Max Depth"
+              name="maxDepth"
+              type="number"
+              min="1"
+              max="50"
+              value={config.maxDepth}
+              onChange={handleInputChange}
+              error={errors.maxDepth}
+            />
             
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>N Estimators</label>
-              <input
-                type="number"
-                name="nEstimators"
-                value={config.nEstimators}
-                onChange={handleInputChange}
-                min="10"
-                max="1000"
-                step="10"
-                style={inputStyle}
-              />
-            </div>
+            <InputField
+              label="N Estimators"
+              name="nEstimators"
+              type="number"
+              min="10"
+              max="1000"
+              step="10"
+              value={config.nEstimators}
+              onChange={handleInputChange}
+              error={errors.nEstimators}
+            />
             
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Learning Rate</label>
-              <input
-                type="number"
-                name="learningRate"
-                value={config.learningRate}
-                onChange={handleInputChange}
-                min="0.001"
-                max="1"
-                step="0.01"
-                style={inputStyle}
-              />
-            </div>
+            <InputField
+              label="Learning Rate"
+              name="learningRate"
+              type="number"
+              min="0.001"
+              max="1"
+              step="0.01"
+              value={config.learningRate}
+              onChange={handleInputChange}
+              error={errors.learningRate}
+            />
             
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Regularization</label>
-              <input
-                type="number"
-                name="regularization"
-                value={config.regularization}
-                onChange={handleInputChange}
-                min="0"
-                max="1"
-                step="0.001"
-                style={inputStyle}
-              />
-            </div>
-          </div>
-        </div>
+            <InputField
+              label="Regularization"
+              name="regularization"
+              type="number"
+              min="0"
+              max="1"
+              step="0.001"
+              value={config.regularization}
+              onChange={handleInputChange}
+              error={errors.regularization}
+            />
+          </Section>
 
-        {/* Training Settings */}
-        <div style={sectionStyle}>
-          <h3 style={{ color: '#007bff', marginBottom: '15px' }}>Training Settings</h3>
-          <div style={gridStyle}>
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Cross Validation Folds</label>
-              <input
-                type="number"
-                name="crossValidation"
-                value={config.crossValidation}
-                onChange={handleInputChange}
-                min="2"
-                max="10"
-                style={inputStyle}
-              />
-            </div>
+          {/* Training Settings */}
+          <Section title="Training Settings" icon={Brain}>
+            <InputField
+              label="Cross Validation Folds"
+              name="crossValidation"
+              type="number"
+              min="2"
+              max="10"
+              value={config.crossValidation}
+              onChange={handleInputChange}
+              error={errors.crossValidation}
+            />
             
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Scoring Metric</label>
-              <select
-                name="scoringMetric"
-                value={config.scoringMetric}
-                onChange={handleInputChange}
-                style={selectStyle}
-              >
-                <option value="accuracy">Accuracy</option>
-                <option value="precision">Precision</option>
-                <option value="recall">Recall</option>
-                <option value="f1">F1 Score</option>
-                <option value="roc_auc">ROC AUC</option>
-              </select>
-            </div>
+            <InputField
+              label="Scoring Metric"
+              name="scoringMetric"
+              type="select"
+              value={config.scoringMetric}
+              onChange={handleInputChange}
+              error={errors.scoringMetric}
+              options={scoringMetricOptions}
+            />
             
-            <div style={inputGroupStyle}>
-              <label style={labelStyle}>Early Stopping Rounds</label>
-              <input
-                type="number"
-                name="earlyStoppingRounds"
-                value={config.earlyStoppingRounds}
-                onChange={handleInputChange}
-                min="5"
-                max="50"
-                style={inputStyle}
-              />
-            </div>
-          </div>
-        </div>
+            <InputField
+              label="Early Stopping Rounds"
+              name="earlyStoppingRounds"
+              type="number"
+              min="5"
+              max="50"
+              value={config.earlyStoppingRounds}
+              onChange={handleInputChange}
+              error={errors.earlyStoppingRounds}
+            />
+          </Section>
 
-        {/* Advanced Options */}
-        <div style={sectionStyle}>
-          <h3 style={{ color: '#007bff', marginBottom: '15px' }}>Advanced Options</h3>
-          <div style={gridStyle}>
-            <div style={inputGroupStyle}>
-              <label style={{ ...labelStyle, display: 'flex', alignItems: 'center' }}>
-                <input
-                  type="checkbox"
-                  name="featureSelection"
-                  checked={config.featureSelection}
-                  onChange={handleInputChange}
-                  style={{ marginRight: '8px' }}
-                />
-                Enable Feature Selection
-              </label>
-            </div>
+          {/* Advanced Options */}
+          <Section title="Advanced Options" icon={Settings}>
+            <InputField
+              label="Enable Feature Selection"
+              name="featureSelection"
+              type="checkbox"
+              value={config.featureSelection}
+              onChange={handleInputChange}
+              error={errors.featureSelection}
+            />
             
-            <div style={inputGroupStyle}>
-              <label style={{ ...labelStyle, display: 'flex', alignItems: 'center' }}>
-                <input
-                  type="checkbox"
-                  name="hyperparameterTuning"
-                  checked={config.hyperparameterTuning}
-                  onChange={handleInputChange}
-                  style={{ marginRight: '8px' }}
-                />
-                Enable Hyperparameter Tuning
-              </label>
-            </div>
-          </div>
-        </div>
+            <InputField
+              label="Enable Hyperparameter Tuning"
+              name="hyperparameterTuning"
+              type="checkbox"
+              value={config.hyperparameterTuning}
+              onChange={handleInputChange}
+              error={errors.hyperparameterTuning}
+            />
+          </Section>
 
-        {/* Action Buttons */}
-        <div style={{ textAlign: 'center', marginTop: '30px' }}>
-          <button
-            onClick={generateJson}
-            style={primaryButtonStyle}
-          >
-            Generate JSON
-          </button>
-          
-          <button
-            onClick={resetForm}
-            style={secondaryButtonStyle}
-          >
-            Reset Form
-          </button>
-          
-          {showJson && (
+          {/* Action Buttons */}
+          <div className="flex flex-wrap justify-center gap-4 pt-6">
             <button
-              onClick={downloadJson}
-              style={successButtonStyle}
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Download JSON
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Generate JSON
+                </>
+              )}
             </button>
-          )}
+            
+            <button
+              type="button"
+              onClick={resetForm}
+              className="flex items-center px-6 py-3 bg-gray-600 text-white font-medium rounded-lg shadow-md hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset Form
+            </button>
+            
+            {showJson && (
+              <button
+                type="button"
+                onClick={downloadJson}
+                className="flex items-center px-6 py-3 bg-green-600 text-white font-medium rounded-lg shadow-md hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download JSON
+              </button>
+            )}
+          </div>
         </div>
 
         {/* JSON Output */}
         {showJson && (
-          <div>
-            <h3 style={{ marginTop: '30px', color: '#333' }}>Generated Configuration:</h3>
-            <pre style={jsonStyle}>
-              {jsonOutput}
-            </pre>
+          <div className="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
+              Generated Configuration
+            </h3>
+            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+              <pre className="text-sm text-gray-800 overflow-auto max-h-96 whitespace-pre-wrap font-mono">
+                {jsonOutput}
+              </pre>
+            </div>
           </div>
         )}
       </div>
