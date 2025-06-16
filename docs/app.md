@@ -10,7 +10,7 @@ flowchart TB
         - Use FastAPI to kick off ML
     "]
     Database["
-        GraphQL API layer
+        Databases
         - Mongo (config files, flexible data)
         - Postgres (model data, structured data)
     "]
@@ -22,7 +22,7 @@ flowchart TB
         - 
     "]
 
-    Frontend -->|GraphQL| Database
     Frontend -->|FastAPI| Backend
-    Backend -->|GraphQL| Database
+    Frontend -->|GraphQL| Database
+    Backend -->|Python Class| Database
 ```

@@ -24,12 +24,18 @@ flowchart TB
     Monitor
     ]
     enduser[End User]
+    train1{Step 1: train}
+    train2{Step 2: select}
 
 	data -->|data| preprocess
 	preprocess -->|data| selection
-	selection -->|data| train
+	%% selection -->|data| train
+    selection --> train1
+    train1 --> train
 	train -->|data| evaluate
 	evaluate -->|data| selection
-	selection -->|data| monitor
+	%% selection -->|data| monitor
 	monitor -->|data| enduser
+    selection --> train2
+    train2 --> monitor
 ```

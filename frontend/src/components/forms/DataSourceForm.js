@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, Database, CheckCircle } from 'lucide-react';
 
-const DataSelectionForm = () => {
+const DataSourceForm = () => {
     const [dataSourceType, setDataSourceType] = useState('upload');
     const [dbConfig, setDbConfig] = useState({});
     const [sqlQuery, setSqlQuery] = useState('SELECT * FROM your_table LIMIT 1000;');
@@ -38,16 +38,18 @@ const DataSelectionForm = () => {
               <div className="text-sm text-gray-500">Upload a CSV file from your computer</div>
             </button>
             <button
-              onClick={() => setDataSourceType('database')}
-              className={`p-4 border-2 rounded-lg transition-all ${
-                dataSourceType === 'database' 
-                  ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
+              disabled
+              className={"p-4 border-2 rounded-lg border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed opacity-60"}
+              // onClick={() => setDataSourceType('database')}
+              // className={`p-4 border-2 rounded-lg transition-all ${
+              //   dataSourceType === 'database' 
+              //     ? 'border-blue-500 bg-blue-50 text-blue-700' 
+              //     : 'border-gray-200 hover:border-gray-300'
+              // }`}
             >
               <Database className="w-8 h-8 mx-auto mb-2" />
               <div className="font-medium">Database Connection</div>
-              <div className="text-sm text-gray-500">Connect to an external database</div>
+              <div className="text-sm text-gray-400">Connect to an external database (Coming Soon)</div>
             </button>
           </div>
         </div>
@@ -186,4 +188,4 @@ const DataSelectionForm = () => {
     );
   };
 
-  export default DataSelectionForm;
+  export default DataSourceForm;
