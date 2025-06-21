@@ -1,8 +1,51 @@
 services:
 
-########################
-### Backend Services ###
-########################
+################
+### Frontend ###
+################
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: env/Dockerfile
+      # args:
+      #   - ENVIRONMENT=${ENVIRONMENT}
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+###############
+### Backend ###
+###############
+
+  backend:
+    build:
+      context: ./backend/env
+      dockerfile: Dockerfile
+      args:
+        - ENVIRONMENT=${ENVIRONMENT}
+    image: monroe-backend
+    container_name: monroe-backend
+    depends_on:
+      - mongo
+      - minio
+      # - dask-worker
+      # - dask-scheduler
+      # - ray-head
+    volumes:
+      - ./backend/src/app:/app
+    env_file:
+      - .env
+      - .env.dev
+    ports:
+      - "${API_PORT}:${API_PORT}"
+    command: backend
 
   jupyter:
     build:
@@ -12,68 +55,62 @@ services:
         - ENVIRONMENT=${ENVIRONMENT}
     image: monroe-jupyter
     container_name: monroe-jupyter
-    depends_on:
+    # depends_on:
+    #   - dask-scheduler
       # - ray-head
-      - dask-scheduler
     volumes:
       - ./backend:/workspace
     env_file:
       - .env
+      - .env.dev
     ports:
       - "${JUPYTER_PORT}:${JUPYTER_PORT}"
     command: jupyter
 
-  dask-scheduler:
-    build:
-      context: ./backend/env
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=${ENVIRONMENT}
-    image: monroe-dask-scheduler
-    container_name: monroe-dask-scheduler
-    env_file:
-      - .env
-    ports:
-      - "${DASK_DASHBOARD_PORT}:${DASK_DASHBOARD_PORT}"
-      - "${DASK_SCHEDULER_PORT}:${DASK_SCHEDULER_PORT}"
-    volumes:
-      - ./backend:/workspace
-    command: dask-scheduler
+  # dask-scheduler:
+  #   image: python:3.11-slim
+  #   container_name: monroe-dask-scheduler
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "${DASK_DASHBOARD_PORT}:${DASK_DASHBOARD_PORT}"
+  #     - "${DASK_SCHEDULER_PORT}:${DASK_SCHEDULER_PORT}"
+  #   command: |
+  #     /bin/bash -c "
+  #     pip install dask[complete];
+  #     dask scheduler
+  #     "
 
-  dask-worker:
-    build:
-      context: ./backend/env
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=${ENVIRONMENT}
-    image: monroe-dask-worker
-    container_name: monroe-dask-worker
-    depends_on:
-      - dask-scheduler
-    volumes:
-      - ./backend:/workspace
-    env_file:
-      - .env
-    command: dask-worker
+  # dask-worker:
+  #   build:
+  #     context: ./backend/env
+  #     dockerfile: Dockerfile
+  #     args:
+  #       - ENVIRONMENT=${ENVIRONMENT}
+  #   image: monroe-dask-worker
+  #   container_name: monroe-dask-worker
+  #   depends_on:
+  #     - dask-scheduler
+  #   env_file:
+  #     - .env
+  #   command: dask-worker
 
-  ray-head:
-    build:
-      context: ./backend/env
-      dockerfile: Dockerfile
-      args:
-        - ENVIRONMENT=${ENVIRONMENT}
-    image: monroe-ray-head
-    container_name: monroe-ray-head
-    env_file:
-      - .env
-    ports:
-      - "${RAY_DASHBOARD_PORT}:${RAY_DASHBOARD_PORT}"
-      - "${RAY_HEAD_PORT}:${RAY_HEAD_PORT}"
-      # - "${RAY_PROMETHEUS_METRICS_PORT}:${RAY_PROMETHEUS_MEsTRICS_PORT}"
-    volumes:
-      - ./backend:/workspace
-    shm_size: 2.27gb
-    command: ray-head
+  # ray-head:
+  #   image: python:3.11-slim
+  #   container_name: monroe-ray-head
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "${RAY_DASHBOARD_PORT}:${RAY_DASHBOARD_PORT}"
+  #     - "${RAY_HEAD_PORT}:${RAY_HEAD_PORT}"
+  #     # - "${RAY_PROMETHEUS_METRICS_PORT}:${RAY_PROMETHEUS_MEsTRICS_PORT}"
+  #   shm_size: 2.27gb
+  #   command: |
+  #     /bin/bash -c "
+  #     pip install ray[data,default,serve,train,tune];
+  #     ray start --head --port=$RAY_HEAD_PORT --dashboard-host=0.0.0.0 --dashboard-port=${RAY_DASHBOARD_PORT};
+  #     tail -f /dev/null
+  #     "
 
   # ray-worker:
   #   build:
@@ -87,8 +124,6 @@ services:
   #     - .env
   #   depends_on:
   #     - ray-head
-  #   volumes:
-  #     - ./backend:/workspace
   #   shm_size: 2.5gb
   #   command: ray-worker
 
@@ -117,24 +152,80 @@ services:
 #       - grafana_data:/var/lib/grafana
 #     restart: unless-stopped
 
-# volumes:
-#   prometheus_data:
-#   grafana_data:
+#################
+### Databases ###
+#################
 
-#########################
-### Frontend Services ###
-#########################
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: env/Dockerfile
-      # args:
-      #   - ENVIRONMENT=${ENVIRONMENT}
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+  mongo:
+    image: mongo:latest
+    container_name: monroe-mongo
     environment:
-      - CHOKIDAR_USEPOLLING=true
+      MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE}
+    ports:
+      - "${MONGO_PORT}:${MONGO_PORT}"
+    volumes:
+      - mongo_data:/data/db
+    env_file:
+      - .env
+      - .env.dev
+    
+  minio:
+    image: minio/minio:latest
+    container_name: monroe-minio
+    env_file:
+      - .env
+      - .env.dev
+    ports:
+      - "${MINIO_PORT}:${MINIO_PORT}"
+      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
+
+  # postgres:
+  #   image: postgres:latest
+  #   container_name: monroe-postgres
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+
+  # redis:
+  #   image: redis:latest
+  #   container_name: monroe-redis
+  #   ports:
+  #     - "${REDIS_PORT}:${REDIS_PORT}"
+  #   volumes:
+  #     - redis_data:/data
+
+# init-db - loading test data into mongodb and minio
+  init-db:
+    image: python:3.11-slim
+    container_name: monroe-init-db
+    depends_on:
+      - mongo
+      - minio
+    env_file:
+      - .env
+      - .env.dev
+    volumes:
+      - ./backend/init:/init
+    command: |
+      /bin/bash -c "
+      pip install pymongo minio;
+      python /init/init_db.py;
+      "
+    
+
+volumes:
+  mongo_data:
+  minio_data:
+  # postgres_data:
+  # redis_data:
+  # prometheus_data:
+  # grafana_data:
+  # ray_data:

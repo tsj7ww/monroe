@@ -3,7 +3,7 @@ FROM python:3.11-slim
 ARG ENVIRONMENT
 ENV ENVIRONMENT=${ENVIRONMENT}
 
-WORKDIR /workspace
+WORKDIR /env
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -81,11 +81,11 @@ ENV PATH="/opt/venv/${ENVIRONMENT}/bin:$PATH"
 # RUN python -m cmdstanpy.install_cmdstan
 
 # Expose ports: Jupyter
-# Ray dashboard + head node
 # Dask scheduler + dashboard
-EXPOSE 8888 \
-    8265 6379 \
+# Ray dashboard + head node
+EXPOSE 8888 8000 \
     8786 8787
+    # 8265 6379
 
 # Set up an entrypoint script
 COPY entrypoint.sh /entrypoint.sh

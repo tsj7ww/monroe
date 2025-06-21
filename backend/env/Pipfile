@@ -7,6 +7,12 @@ name = "pypi"
 python_version = "3.11"
 
 [packages]
+# Web and API
+fastapi = "*"
+uvicorn = {extras=["standard"], version = "*"}
+requests = "*"
+strawberry-graphql = "*"
+
 # Jupyter Environment
 jupyterlab = "*"
 jupyter_client = "*"
@@ -62,16 +68,20 @@ optuna = "*"
 # cmdstanpy = "*"
 # stan = "*"
 
-# Web and API
-fastapi = "*"
-uvicorn = "*"
-python-multipart = "*"
-requests = "*"
-
 # Database
+pyarrow = "*"
 sqlalchemy = "*"
-psycopg2-binary = "*"
 python-dotenv = "*"
+python-multipart = "*"
+pydantic = "*"
+pydantic-settings = "*"
+pymongo = "*"
+motor = "*"
+minio = "*"
+# psycopg2-binary = "*"
+# asyncpg = "*"
+# redis = "*"
+# boto3 = "*"
 
 # Image Processing
 # opencv-python-headless = "*"
